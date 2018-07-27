@@ -171,9 +171,14 @@ end
 -- Ease synchronous
 function Easing.Ease(...)
 	local args = {...}
-	spawn(function()
+	local dur = args[1]
+	if dur and dur == 0 then
 		Easing.EaseAsync(unpack(args))
-	end)
+	else
+		spawn(function()
+			Easing.EaseAsync(unpack(args))
+		end)
+	end
 end
 
 -- Ease with a callback function

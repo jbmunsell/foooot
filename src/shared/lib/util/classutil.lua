@@ -6,9 +6,6 @@
 --	Class util module
 --
 
--- boot
-require(game:GetService('ReplicatedStorage').src.boot)()
-
 -- Module
 local classutil = {}
 

@@ -9,6 +9,9 @@
 -- boot
 require(game:GetService('ReplicatedStorage').src.boot)()
 
+-- services
+serve 'Players'
+
 -- includes
 include '/lib/util/classutil'
 
@@ -29,7 +32,7 @@ function Screen.Init(self)
 	end
 
 	-- Clone
-	self.screen = clone(screen, localPlayer:WaitForChild('PlayerGui'), { Enabled = false })
+	self.screen = clone(screen, Players.LocalPlayer:WaitForChild('PlayerGui'), { Enabled = false })
 	self.container = self.screen:FindFirstChild('Container')
 	self.components = self.screen:FindFirstChild('Components')
 end
@@ -41,9 +44,18 @@ end
 
 -- Destroy
 function Screen.Destroy(self)
+	-- Debounce
+	if self.destroying or self.destroyed then return end
+	self.destroying = true
+
+	-- Destroy screen
 	if self.screen then
 		self.screen:Destroy()
 	end
+
+	-- Set final flag
+	self.destroyed = true
+	self.destroying = false
 end
 
 -- return module
