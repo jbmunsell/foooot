@@ -14,23 +14,14 @@ serve 'RunService'
 serve 'Players'
 
 -- includes
-include '/lib/Roact'
-include '/lib/Rodux'
-include '/lib/RoactRodux'
-include '/lib/GLib'
-
 include '/lib/util/tableutil'
+include '/lib/util/classutil'
 
 include '/lib/classes/Timer'
 
-include '/client/src/Controller'
+include '/client/src/game/Controller'
 
-include '/shared/src/gui/classes/Screen'
-
-include '/shared/src/gui/ScoreDisplay'
-include '/shared/src/gui/GoalText'
-include '/shared/src/gui/PlayCountdown'
-include '/shared/src/gui/PowerupText'
+include '/shared/src/gui/MatchGui'
 
 include '/enum/ControllerDeviceType'
 include '/enum/KeyboardControlType'
@@ -39,8 +30,7 @@ include '/enum/powerup/PowerupId'
 include '/enum/powerup/PowerupState'
 
 -- Tags
-local c = Roact.createElement
-local local_player = Players.LocalPlayer
+local localPlayer = Players.LocalPlayer
 
 ----------------------------------------------------------------------------------------------
 -- Consts
@@ -75,20 +65,7 @@ for _, module in pairs(get('/shared/src/game/powerups'):GetChildren()) do
 end
 
 -- Module
-local Match = {}
-Match.__index = Match
-
--- Constructor
-function Match.new()
-	-- Create object
-	local object = setmetatable({}, Match)
-
-	-- Init
-	object:Init()
-
-	-- return object
-	return object
-end
+local Match = classutil.newclass()
 
 -- Init
 function Match.Init(self)
@@ -102,6 +79,10 @@ function Match.Init(self)
 
 	-- Tables
 	self.powerups = {}
+	self.score = {
+		[CharacterId.Player1] = 0,
+		[CharacterId.Player2] = 0,
+	}
 
 	-- Timers
 	self.powerup_spawn_timer = Timer.new(
@@ -110,13 +91,17 @@ function Match.Init(self)
 		function() self:SpawnRandomPowerup() end
 	)
 
+	-- Gui
+	self.gui = MatchGui.new()
+
 	-- Init
 	self:InitObjects()
-	self:InitGui()
 	self:InitControllers()
 
 	-- Start play
-	self:StartPlay()
+	spawn(function()
+		self:StartPlay()
+	end)
 
 	-- Goal line technology
 	self.heartbeat = RunService.Heartbeat:connect(function(dt)
@@ -139,79 +124,12 @@ function Match.InitObjects(self)
 	camera.CFrame = CFrame.new(Vector3.new(0, 90, 350), Vector3.new(0, 90, 0))
 	camera.FieldOfView = 20
 end
-function Match.InitGui(self)
-	-- Create gui store
-	self.store = Rodux.Store.new(Match.reduce)
-
-	-- Wrap elements in a store
-	self.gui = c(RoactRodux.StoreProvider, {
-		store = self.store,
-	}, {
-		Main = Roact.createElement(Screen, {}, {
-			c(GoalText),
-			c(PlayCountdown),
-			c(ScoreDisplay),
-			c(PowerupText),
-		}),
-	})
-
-	-- Mount
-	self.gui_handle = Roact.mount(self.gui, local_player.PlayerGui)
-end
 function Match.InitControllers(self)
 	-- Create controller for keyboard left
 	self.controller_left = Controller.new(ControllerDeviceType.Keyboard, KeyboardControlType.Left)
 	self.controller_right = Controller.new(ControllerDeviceType.Keyboard, KeyboardControlType.Right)
 	self.controller_left:Connect(CharacterId.Player1)
 	self.controller_right:Connect(CharacterId.Player2)
-end
-
--- reduce gui state
-function Match.reduce(state, action)
-	state = state or {
-		showing_goal_text = false,
-		showing_countdown = false,
-		showing_powerup_text = false,
-		countdown_count = 0,
-
-		score = {
-			[CharacterId.Player1] = 0,
-			[CharacterId.Player2] = 0,
-		},
-	}
-
-	local nstate = {}
-
-	if action.type == 'HIDE_GOAL_TEXT' then
-		nstate.showing_goal_text = false
-	elseif action.type == 'GOAL_SCORED' then
-		nstate.score = {}
-		local pscore = state.score[action.scorer] + 1
-		nstate.score[action.scorer] = pscore
-		nstate.showing_goal_text = true
-		local pkey = string.upper(tableutil.get_key(CharacterId, action.scorer))
-		if pscore >= GOALS_TO_WIN then
-			nstate.goal_text = string.format('%s WINS!', pkey)
-		else
-			nstate.goal_text = string.format('GOAL BY %s!', pkey)
-		end
-	elseif action.type == 'SET_COUNTDOWN_TEXT' then
-		nstate.showing_countdown = true
-		nstate.countdown_count = action.count
-	elseif action.type == 'HIDE_COUNTDOWN_TEXT' then
-		nstate.showing_countdown = false
-	elseif action.type == 'SHOW_POWERUP_TEXT' then
-		nstate.showing_powerup_text = true
-		nstate.powerup_text = action.text
-	elseif action.type == 'HIDE_POWERUP_TEXT' then
-		nstate.showing_powerup_text = false
-	end
-
-	if nstate then
-		return tableutil.merge_into_new(state, nstate)
-	end
-
-	return state
 end
 
 -- Spawn ball
@@ -255,9 +173,7 @@ end
 -- Start play
 function Match.StartPlay(self)
 	-- Hide goal text
-	self.store:dispatch({
-		type = 'HIDE_GOAL_TEXT',
-	})
+	self.gui:HideScoreLabel()
 
 	-- Spawn ball
 	self:ClearBalls()
@@ -286,15 +202,11 @@ function Match.StartPlay(self)
 
 	-- Countdown
 	for i = 3, 1, -1 do
-		self.store:dispatch({
-			type = 'SET_COUNTDOWN_TEXT',
-			count = i,
-		})
+		self.gui:SetCountdownText(i)
+		self.gui:ShowCountdownLabel() -- Call after setting so that it's after the text is set
 		wait(1)
 	end
-	self.store:dispatch({
-		type = 'HIDE_COUNTDOWN_TEXT',
-	})
+	self.gui:HideCountdownLabel()
 
 	-- Unlock controls
 	self:SetBallsAnchored(false)
@@ -356,27 +268,25 @@ function Match.RegisterGoal(self, scorer)
 	-- Disable goal detection
 	self.goal_detection_enabled = false
 
-	-- Delay reset play
-	delay(3, function()
-		self:StartPlay()
-	end)
+	-- Check win conditions
+	local score_text = 'scored'
+	local score = self.score[scorer] + 1
+	self.score[scorer] = score
+	if score >= GOALS_TO_WIN then
+		score_text = 'wins'
+		delay(3, function()
+			self:Destroy()
+		end)
+	else
+		-- Delay reset play
+		delay(3, function()
+			self:StartPlay()
+		end)
+	end
+	self.gui:UpdateScoreDisplay(self.score)
 
 	-- Show goal text
-	self.store:dispatch({
-		type = 'GOAL_SCORED',
-		scorer = scorer,
-	})
-
-	-- Check win conditions
-	local state = self.store:getState()
-	for character_id, score in pairs(state.score) do
-		if score >= GOALS_TO_WIN then
-			log('%s wins!', tableutil.get_key(CharacterId, character_id))
-			delay(3, function()
-				self:Destroy()
-			end)
-		end
-	end
+	self.gui:ShowScoreLabel(string.format('%s %s!', string.upper(tableutil.get_key(CharacterId, scorer)), string.upper(score_text)))
 end
 
 -- Check goals
@@ -414,15 +324,7 @@ function Match.CheckPowerupAgainstBalls(self, powerup)
 			-- Collect powerup
 			powerup:ShowCollection()
 			powerup:Activate(ball)
-			self.store:dispatch({
-				type = 'SHOW_POWERUP_TEXT',
-				text = string.format('%s!', string.upper(powerup.Data.DisplayName)),
-			})
-			delay(2, function()
-				self.store:dispatch({
-					type = 'HIDE_POWERUP_TEXT',
-				})
-			end)
+			self.gui:ShowPowerupLabel(string.upper(powerup.Data.DisplayName), 2)
 			break
 		end
 	end
@@ -455,8 +357,8 @@ end
 
 -- Destroy
 function Match.Destroy(self)
-	-- Gui
-	Roact.unmount(self.gui_handle)
+	-- Destroy gui
+	self.gui:Destroy()
 
 	-- Controllers
 	self.controller_left:Destroy()
@@ -468,7 +370,8 @@ function Match.Destroy(self)
 	-- Model
 	self.bin:Destroy()
 
-	-- Done. Start menu listens to this so that it can present itself again once the match is destroyed
+	-- Done. Local kernel listens to this so that it can show start menu again
+	-- 	once match is complete
 	self.destroyed = true
 end
 

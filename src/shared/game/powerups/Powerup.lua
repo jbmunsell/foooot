@@ -13,6 +13,7 @@ require(game:GetService('ReplicatedStorage').src.boot)()
 include '/lib/Easing'
 
 include '/lib/util/tableutil'
+include '/lib/util/classutil'
 
 include '/enum/powerup/PowerupId'
 include '/enum/powerup/PowerupEffectType'
@@ -26,19 +27,11 @@ local EFFECT_TYPE_COLORS = {
 }
 
 -- Module
-local Powerup = {}
-Powerup.__index = Powerup
+local Powerup = classutil.newclass()
 
--- Constructor
-function Powerup.new(match)
-	-- Create object
-	local object = setmetatable({}, Powerup)
-
-	-- set
-	object.match = match
-
-	-- return object
-	return object
+-- Init
+function Powerup.Init(self, match)
+	self.match = match
 end
 
 -- Life cycle

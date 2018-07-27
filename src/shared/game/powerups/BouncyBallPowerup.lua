@@ -10,17 +10,15 @@
 require(game:GetService('ReplicatedStorage').src.boot)()
 
 -- includes
+include '/lib/util/classutil'
+
 include '/shared/src/game/powerups/Powerup'
 
 include '/enum/powerup/PowerupEffectType'
 include '/enum/powerup/PowerupId'
 
 -- Module
-local BouncyBallPowerup = {}
-BouncyBallPowerup.__index = BouncyBallPowerup
-
--- Inherit from superclass
-setmetatable(BouncyBallPowerup, { __index = Powerup })
+local BouncyBallPowerup = classutil.extend(Powerup)
 
 -- Powerup static properties
 -- 	Read only please
@@ -30,15 +28,6 @@ BouncyBallPowerup.Data = {
 	EffectDuration = 45,
 	DisplayName = 'Bouncy Ball',
 }
-
--- Constructor
-function BouncyBallPowerup.new(...)
-	-- Create object
-	local object = setmetatable(Powerup.new(...), BouncyBallPowerup)
-
-	-- return object
-	return object
-end
 
 -- Apply effect
 function BouncyBallPowerup.ApplyEffect(self, ball)

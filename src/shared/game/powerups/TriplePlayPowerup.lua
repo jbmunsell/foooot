@@ -10,17 +10,15 @@
 require(game:GetService('ReplicatedStorage').src.boot)()
 
 -- includes
+include '/lib/util/classutil'
+
 include '/shared/src/game/powerups/Powerup'
 
 include '/enum/powerup/PowerupEffectType'
 include '/enum/powerup/PowerupId'
 
 -- Module
-local TriplePlayPowerup = {}
-TriplePlayPowerup.__index = TriplePlayPowerup
-
--- Inherit from superclass
-setmetatable(TriplePlayPowerup, { __index = Powerup })
+local TriplePlayPowerup = classutil.extend(Powerup)
 
 -- Powerup static properties
 -- 	Read only please
@@ -29,15 +27,6 @@ TriplePlayPowerup.Data = {
 	PowerupId = PowerupId.TriplePlay,
 	DisplayName = 'Triple Ball',
 }
-
--- Constructor
-function TriplePlayPowerup.new(...)
-	-- Create object
-	local object = setmetatable(Powerup.new(...), TriplePlayPowerup)
-
-	-- return object
-	return object
-end
 
 -- Apply effect
 function TriplePlayPowerup.ApplyEffect(self, ball)
