@@ -1,0 +1,187 @@
+--
+--	Jackson Munsell
+--	07/19/18
+--	Controller.lua
+--
+--	Controller script
+--
+
+-- boot
+require(game:GetService('ReplicatedStorage').src.boot)()
+
+-- services
+serve 'RunService'
+serve 'UserInputService'
+
+-- includes
+include '/lib/util/tableutil'
+
+include '/lib/classes/Switchboard'
+
+include '/enum/ControllerDeviceType'
+include '/enum/KeyboardControlType'
+include '/enum/CharacterId'
+
+-- Consts
+local BASE_JUMP_POWER      = 42
+local BASE_LINEAR_VELOCITY = 10
+
+-- Default mappings
+local DEFAULT_MAPPINGS = {
+	[KeyboardControlType.Left] = {
+		['jump']  = Enum.KeyCode.W,
+		['left']  = Enum.KeyCode.A,
+		['right'] = Enum.KeyCode.D,
+		['kick']  = Enum.KeyCode.Space,
+	},
+	[KeyboardControlType.Right] = {
+		['jump']  = Enum.KeyCode.Up,
+		['left']  = Enum.KeyCode.Left,
+		['right'] = Enum.KeyCode.Right,
+		['kick']  = Enum.KeyCode.P,
+	},
+}
+
+-- Module
+local Controller = {}
+Controller.__index = Controller
+
+-- Constructor
+function Controller.new(...)
+	-- Create object
+	local object = setmetatable({}, Controller)
+
+	-- Init
+	object:Init(...)
+
+	-- return object
+	return object
+end
+
+-- Get character
+function Controller.GetCharacter(self)
+	return workspace:FindFirstChild('Controller_' .. tableutil.get_key(CharacterId, self.character_id))
+end
+
+-- Init
+function Controller.Init(self, controller_device_type, ...)
+	-- Args
+	local args = {...}
+
+	-- Set
+	self.ControllerDeviceType = controller_device_type
+	if self.ControllerDeviceType == ControllerDeviceType.Keyboard then
+		self.KeyboardControlType = args[1]
+	end
+
+	-- Update
+	self.heartbeat = RunService.Heartbeat:connect(function(dt)
+		self:Update(dt)
+	end)
+end
+
+-- Lock controls
+function Controller.LockControls(self)
+	self.controls_locked = true
+end
+function Controller.UnlockControls(self)
+	self.controls_locked = false
+end
+
+-- Connect
+function Controller.Connect(self, character_id)
+	-- Set player id
+	self.character_id = character_id
+
+	-- Switch controller device type
+	if self.ControllerDeviceType == ControllerDeviceType.Keyboard then
+		self:BindControlMappings(DEFAULT_MAPPINGS[self.KeyboardControlType])
+	end
+end
+
+-- Bind control mappings
+function Controller.BindControlMappings(self, mappings)
+	-- Create new switchboard
+	self:UnbindMappings()
+	self.board = Switchboard.new()
+
+	-- Set mappings
+	self.mappings = mappings
+end
+function Controller.UnbindMappings(self)
+	if self.board then
+		self.board:disconnect()
+		self.board = nil
+	end
+end
+
+-- Set velocity axis
+local UNIT_VECTORS = {
+	X = Vector3.new(1, 0, 0),
+	Y = Vector3.new(0, 1, 0),
+	Z = Vector3.new(0, 0, 1),
+}
+function Controller.SetVelocityAxis(self, axis, v)
+	local character = self:GetCharacter()
+	if character then
+		local vel = character.PrimaryPart.Velocity
+		character.PrimaryPart.Velocity = vel + UNIT_VECTORS[axis] * (-vel[axis] + v)
+	end
+end
+
+-- Update
+function Controller.Update(self, dt)
+	-- Get character
+	local character = self:GetCharacter()
+	local root = character.PrimaryPart
+
+	-- Controls locked
+	if self.controls_locked then return end
+
+	-- Handle keyboard controls
+	if self.ControllerDeviceType == ControllerDeviceType.Keyboard then
+		-- Directional
+		local left  = self.mappings.left
+		local right = self.mappings.right
+		local jump = self.mappings.jump
+		local kick = self.mappings.kick
+		local body_position = root.BodyPositionX
+		if left and UserInputService:IsKeyDown(left) then
+			body_position.Position = root.Position + Vector3.new(-BASE_LINEAR_VELOCITY, 0, 0)
+		elseif right and UserInputService:IsKeyDown(right) then
+			body_position.Position = root.Position + Vector3.new(BASE_LINEAR_VELOCITY, 0, 0)
+		else
+			body_position.Position = root.Position
+		end
+
+		-- Jump
+		if jump and UserInputService:IsKeyDown(jump) then
+			if root.Velocity.Y <= 0.1 then
+				local diff = character.BoxCollider.Position.Y - (character.BoxCollider.Size.Y + workspace.Ground.Size.Y) * .5 - workspace.Ground.Position.Y
+				if diff <= 0.1 then
+					self:SetVelocityAxis('Y', BASE_JUMP_POWER)
+				end
+				-- local touching = character.BoxCollider:GetTouchingParts()
+				-- if tableutil.get_key(touching, workspace.Ground) then
+				-- 	self:SetVelocityAxis('Y', BASE_JUMP_POWER)
+				-- end
+			end
+		end
+
+		-- Kick
+		if kick and UserInputService:IsKeyDown(kick) then
+			root.Hip.TargetAngle = -50
+		else
+			root.Hip.TargetAngle = 10
+		end
+	end
+end
+
+-- Destroy
+function Controller.Destroy(self)
+	self.heartbeat:disconnect()
+	self:UnbindMappings()
+end
+
+-- return controller
+return Controller
