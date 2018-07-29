@@ -15,6 +15,7 @@ serve 'UserInputService'
 
 -- includes
 include '/lib/util/tableutil'
+include '/lib/util/classutil'
 
 include '/lib/classes/Switchboard'
 
@@ -23,8 +24,8 @@ include '/enum/KeyboardControlType'
 include '/enum/CharacterId'
 
 -- Consts
-local BASE_JUMP_POWER      = 42
-local BASE_LINEAR_VELOCITY = 10
+local BASE_JUMP_POWER      = 48
+local BASE_LINEAR_VELOCITY = 14
 
 -- Default mappings
 local DEFAULT_MAPPINGS = {
@@ -43,24 +44,11 @@ local DEFAULT_MAPPINGS = {
 }
 
 -- Module
-local Controller = {}
-Controller.__index = Controller
-
--- Constructor
-function Controller.new(...)
-	-- Create object
-	local object = setmetatable({}, Controller)
-
-	-- Init
-	object:Init(...)
-
-	-- return object
-	return object
-end
+local Controller = classutil.newclass()
 
 -- Get character
 function Controller.GetCharacter(self)
-	return workspace:FindFirstChild('Controller_' .. tableutil.get_key(CharacterId, self.character_id))
+	return workspace:FindFirstChild('Controller_' .. tableutil.getkey(CharacterId, self.character_id))
 end
 
 -- Init
@@ -73,6 +61,10 @@ function Controller.Init(self, controller_device_type, ...)
 	if self.ControllerDeviceType == ControllerDeviceType.Keyboard then
 		self.KeyboardControlType = args[1]
 	end
+
+	-- Members
+	self.jump_modifier = 1.0
+	self.speed_modifier = 1.0
 
 	-- Update
 	self.heartbeat = RunService.Heartbeat:connect(function(dt)
@@ -147,9 +139,9 @@ function Controller.Update(self, dt)
 		local kick = self.mappings.kick
 		local body_position = root.BodyPositionX
 		if left and UserInputService:IsKeyDown(left) then
-			body_position.Position = root.Position + Vector3.new(-BASE_LINEAR_VELOCITY, 0, 0)
+			body_position.Position = root.Position + Vector3.new(-BASE_LINEAR_VELOCITY * self.speed_modifier, 0, 0)
 		elseif right and UserInputService:IsKeyDown(right) then
-			body_position.Position = root.Position + Vector3.new(BASE_LINEAR_VELOCITY, 0, 0)
+			body_position.Position = root.Position + Vector3.new(BASE_LINEAR_VELOCITY * self.speed_modifier, 0, 0)
 		else
 			body_position.Position = root.Position
 		end
@@ -159,10 +151,10 @@ function Controller.Update(self, dt)
 			if root.Velocity.Y <= 0.1 then
 				local diff = character.BoxCollider.Position.Y - (character.BoxCollider.Size.Y + workspace.Ground.Size.Y) * .5 - workspace.Ground.Position.Y
 				if diff <= 0.1 then
-					self:SetVelocityAxis('Y', BASE_JUMP_POWER)
+					self:SetVelocityAxis('Y', BASE_JUMP_POWER * self.jump_modifier)
 				end
 				-- local touching = character.BoxCollider:GetTouchingParts()
-				-- if tableutil.get_key(touching, workspace.Ground) then
+				-- if tableutil.getkey(touching, workspace.Ground) then
 				-- 	self:SetVelocityAxis('Y', BASE_JUMP_POWER)
 				-- end
 			end

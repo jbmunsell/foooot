@@ -25,7 +25,7 @@ local BouncyBallPowerup = classutil.extend(Powerup)
 BouncyBallPowerup.Data = {
 	PowerupEffectType = PowerupEffectType.Neutral,
 	PowerupId = PowerupId.BouncyBall,
-	EffectDuration = 45,
+	EffectDuration = 30,
 	DisplayName = 'Bouncy Ball',
 }
 

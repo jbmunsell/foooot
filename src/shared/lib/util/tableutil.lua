@@ -21,7 +21,7 @@ function tableutil.getrandom(array)
 end
 
 -- Get key from value
-function tableutil.get_key(tb, val)
+function tableutil.getkey(tb, val)
 	for k, v in pairs(tb) do
 		if v == val then return k end
 	end
