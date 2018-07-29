@@ -25,13 +25,24 @@ local EFFECT_TYPE_COLORS = {
 	[PowerupEffectType.Good]    = Color3.fromRGB(0, 255, 0),
 	[PowerupEffectType.Bad]     = Color3.fromRGB(255, 0, 0),
 }
+local POWERUP_POLARITIES = {
+	PowerupEffectType.Good,
+	PowerupEffectType.Bad,
+}
 
 -- Module
 local Powerup = classutil.newclass()
 
 -- Init
 function Powerup.Init(self, match)
+	-- Set match
 	self.match = match
+
+	-- Assing polarity
+	if self.Data.PowerupEffectType == PowerupEffectType.Advantage or self.Data.PowerupEffectType == PowerupEffectType.Disadvantage then
+		self.polarity = (tableutil.getrandom(POWERUP_POLARITIES))
+		log('selected polarity')
+	end
 end
 
 -- Life cycle
@@ -40,8 +51,9 @@ function Powerup.Spawn(self, position)
 	self.state = PowerupState.Spawned
 
 	-- Create new model
-	self.model = clone('/res/models/powerups/' .. tableutil.get_key(PowerupId, self.Data.PowerupId), self.match.bin)
-	self.model.Coin.Color = EFFECT_TYPE_COLORS[self.Data.PowerupEffectType]
+	-- 	Pull the color from our polarity, and if we don't have a polarity (neutral powerup) then use the powerup effect type (which will be neutral)
+	self.model = clone('/res/models/powerups/' .. tableutil.getkey(PowerupId, self.Data.PowerupId), self.match.bin)
+	self.model.Coin.Color = EFFECT_TYPE_COLORS[self.polarity or self.Data.PowerupEffectType]
 	self:SetPosition(position)
 
 	-- Ease size in

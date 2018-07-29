@@ -8,9 +8,11 @@
 
 -- Enum
 local enum = {
-	Neutral		= 0,
-	Good		= 1,
-	Bad			= 2,
+	Neutral      = 0,
+	Advantage    = 1,
+	Disadvantage = 2,
+	Good         = 3,
+	Bad          = 4,
 }
 
 -- return

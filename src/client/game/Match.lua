@@ -28,6 +28,7 @@ include '/enum/KeyboardControlType'
 include '/enum/CharacterId'
 include '/enum/powerup/PowerupId'
 include '/enum/powerup/PowerupState'
+include '/enum/powerup/PowerupEffectType'
 
 -- Tags
 local localPlayer = Players.LocalPlayer
@@ -64,6 +65,16 @@ for _, module in pairs(get('/shared/src/game/powerups'):GetChildren()) do
 	end
 end
 
+-- Powerup testing
+local TEST_SINGLE_POWERUP = false
+if TEST_SINGLE_POWERUP then
+	local path = '/shared/src/game/powerups/SmallBallPowerup'
+	local powerup = require(get(path))
+	POWERUP_CLASSES = {
+		[powerup.Data.PowerupId] = powerup,
+	}
+end
+
 -- Module
 local Match = classutil.newclass()
 
@@ -77,8 +88,12 @@ function Match.Init(self)
 	self.goal_detection_enabled    = true
 	self.powerup_detection_enabled = true
 
+	-- Modifiers
+	self.ball_size_modifier = 1
+
 	-- Tables
 	self.powerups = {}
+	self.touch_trackers = {}
 	self.score = {
 		[CharacterId.Player1] = 0,
 		[CharacterId.Player2] = 0,
@@ -135,18 +150,32 @@ end
 -- Spawn ball
 function Match.ClearBalls(self)
 	for _, ball in pairs(self.balls) do
+		self.touch_trackers[ball] = nil
 		ball:Destroy()
 	end
 	self.balls = {}
 end
 function Match.AddBall(self, ball)
+	-- Parent and insert
 	ball.Parent = self.bin
 	table.insert(self.balls, ball)
+
+	-- Listen for touched
+	local controllers = {self.controller_left, self.controller_right}
+	ball.Touched:connect(function(hit)
+		for _, controller in pairs(controllers) do
+			if hit:IsDescendantOf(controller:GetCharacter()) then
+				self.touch_trackers[ball] = controller
+				break
+			end
+		end
+	end)
 end
 function Match.SpawnBall(self, position)
 	-- Clone new
 	local ball = clone('/res/models/balls/StandardBall')
 	self:SetBallElasticity(ball, self.BALL_ELASTICITY_REGULAR)
+	self:ChangeSingleBallSizeModifier(ball, 1, self.ball_size_modifier)
 	ball.CFrame = (position and CFrame.new(position) or BALL_SPAWN_POSITION)
 	ball.Velocity = Vector3.new(
 		math.random(-BALL_SPAWN_VELOCITY_RANGE, BALL_SPAWN_VELOCITY_RANGE),
@@ -168,6 +197,18 @@ function Match.SetBallElasticity(self, ball, elasticity)
 		old.FrictionWeight,
 		old.ElasticityWeight
 	)
+end
+function Match.ChangeSingleBallSizeModifier(self, ball, old, modifier)
+	local factor = modifier / old
+	ball.Size = ball.Size * factor
+	ball.UpForce.Force = ball.UpForce.Force * math.pow(factor, 3)
+end
+function Match.SetBallSizeModifier(self, modifier)
+	local old = self.ball_size_modifier
+	for _, ball in pairs(self.balls) do
+		self:ChangeSingleBallSizeModifier(ball, old, modifier)
+	end
+	self.ball_size_modifier = modifier
 end
 
 -- Start play
@@ -286,7 +327,7 @@ function Match.RegisterGoal(self, scorer)
 	self.gui:UpdateScoreDisplay(self.score)
 
 	-- Show goal text
-	self.gui:ShowScoreLabel(string.format('%s %s!', string.upper(tableutil.get_key(CharacterId, scorer)), string.upper(score_text)))
+	self.gui:ShowScoreLabel(string.format('%s %s!', string.upper(tableutil.getkey(CharacterId, scorer)), string.upper(score_text)))
 end
 
 -- Check goals
@@ -327,6 +368,30 @@ function Match.CheckPowerupAgainstBalls(self, powerup)
 			self.gui:ShowPowerupLabel(string.upper(powerup.Data.DisplayName), 2)
 			break
 		end
+	end
+end
+
+-- Get designated powerup controller
+function Match.GetDesignatedPowerupController(self, powerup, ball)
+	-- Get the guy that last touched it
+	local toucher = self.touch_trackers[ball]
+	if not toucher then
+		warn('No toucher for ball')
+		return
+	end
+
+	-- Get other guy
+	local other = (toucher == self.controller_left and self.controller_right or self.controller_left)
+
+	-- Check who to affect based on polarity
+	if powerup.polarity == PowerupEffectType.Good then
+		-- If it's a disadvantage, then apply to the other guy. Else apply to us
+		return (powerup.Data.PowerupEffectType == PowerupEffectType.Disadvantage and other or toucher)
+	elseif powerup.polarity == PowerupEffectType.Bad then
+		-- If it's an advantage, then apply it to the other guy. Else apply it to us
+		return (powerup.Data.PowerupEffectType == PowerupEffectType.Advantage and other or toucher)
+	else
+		error(string.format('Unsure how to handle powerup polarity: %d', powerup.polarity))
 	end
 end
 
