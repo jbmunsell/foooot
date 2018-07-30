@@ -9,21 +9,21 @@ This little game is entirely client-sided. I'll work on adding online support la
 You'll notice that every script (excluding libraries) requires the `boot` module at the very top of the script. The boot module does an interesting trick by manipulating the function environment that calls it. The quick explanation of this is that when a script requires the boot module and calls the function that it returns, the boot module puts a few functions inside that module, like `include` and `serve`.
 
 This is just a nifty trick to eliminate redundancies. Instead of writing out this:
-
-	local PregameMenu = require(game:GetService('ReplicatedStorage').src.gui.PregameMenu)
-
+```lua
+local PregameMenu = require(game:GetService('ReplicatedStorage').src.gui.PregameMenu)
+```
 the `include` function allows you to write this (which evaluates to exactly the same thing as above):
-
+```lua
 	include '/shared/src/gui/PregameMenu'
-
+```
 This works by requiring PregameMenu, and then setting that required module to a variable inside the calling script that has the same name as the module script. The `serve` function is very similar, and helps eliminate redundancies when getting services. Instead of
-
+```lua
 	local UserInputService = game:GetService('UserInputService')
-
+```
 the `serve` function lets you do this:
-
+```lua
 	serve 'UserInputService'
-
+```
 which is essentially the exact same thing as the longer way demonstrated above.
 
 If you'd like a deeper explanation of how this works, [send me a tweet](http://twitter.com/biostreem). If enough people ask, I'll add some more technical details on this page.
