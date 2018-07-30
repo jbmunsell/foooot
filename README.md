@@ -14,18 +14,16 @@ local PregameMenu = require(game:GetService('ReplicatedStorage').src.gui.Pregame
 ```
 the `include` function allows you to write this (which evaluates to exactly the same thing as above):
 ```lua
-	include '/shared/src/gui/PregameMenu'
+include '/shared/src/gui/PregameMenu'
 ```
 This works by requiring PregameMenu, and then setting that required module to a variable inside the calling script that has the same name as the module script. The `serve` function is very similar, and helps eliminate redundancies when getting services. Instead of
 ```lua
-	local UserInputService = game:GetService('UserInputService')
+local UserInputService = game:GetService('UserInputService')
 ```
 the `serve` function lets you do this:
 ```lua
-	serve 'UserInputService'
+serve 'UserInputService'
 ```
 which is essentially the exact same thing as the longer way demonstrated above.
 
 If you'd like a deeper explanation of how this works, [send me a tweet](http://twitter.com/biostreem). If enough people ask, I'll add some more technical details on this page.
-
-Jacksopn is jacmosn
