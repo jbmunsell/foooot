@@ -17,6 +17,8 @@ include '/lib/util/classutil'
 
 include '/lib/classes/gui/Screen'
 
+include '/shared/src/gui/PregameMenu'
+
 -- Module
 local StartMenu = classutil.extend(Screen)
 StartMenu.GuiPath = '/res/gui/StartMenu'
@@ -44,6 +46,9 @@ function StartMenu.Init(self)
 			end
 		end, false, Enum.KeyCode.Space)
 		while not space do wait() end
+
+		-- Show a pregame menu
+		local pregame = PregameMenu.new()
 
 		-- Destroy
 		self:Destroy()
