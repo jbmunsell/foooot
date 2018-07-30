@@ -3,7 +3,9 @@
 --	07/05/18
 --	boot.lua
 --
---	Boot module; dumps functions into function namespace
+--	Boot module. This script is required at the top other scripts to dump functions into the module's function environment.
+-- 		Any member of the boot module is automatically dumped into the function environment which calls the function returned by this
+-- 		module script.
 --
 
 -- services
