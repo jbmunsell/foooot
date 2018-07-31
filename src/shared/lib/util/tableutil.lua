@@ -27,6 +27,19 @@ function tableutil.getkey(tb, val)
 	end
 end
 
+-- Log table
+function tableutil.logtable(tb, tabs)
+	tabs = tabs or 0
+	for k, v in pairs(tb) do
+		if type(v) ~= 'table' then
+			print(string.format('%s[%s]: %s', string.rep('\t', tabs), tostring(k), tostring(v)))
+		else
+			print(string.format('%s[%s]', string.rep('\t', tabs), tostring(k)))
+			tableutil.log_table(v, tabs + 1)
+		end
+	end
+end
+
 -- Shallow copy array
 function tableutil.shallow_copy(tb)
 	local n = {}

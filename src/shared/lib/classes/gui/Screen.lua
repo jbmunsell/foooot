@@ -35,11 +35,15 @@ function Screen.Init(self)
 	self.screen = clone(screen, Players.LocalPlayer:WaitForChild('PlayerGui'), { Enabled = false })
 	self.container = self.screen:FindFirstChild('Container')
 	self.components = self.screen:FindFirstChild('Components')
+	self.frame = self.container and self.container:FindFirstChild('Frame')
 end
 
 -- Show
 function Screen.Show(self)
 	self.screen.Enabled = true
+end
+function Screen.Hide(self)
+	self.screen.Enabled = false
 end
 
 -- Destroy

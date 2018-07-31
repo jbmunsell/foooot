@@ -3,7 +3,9 @@
 --	07/05/18
 --	boot.lua
 --
---	Boot module; dumps functions into function namespace
+--	Boot module. This script is required at the top other scripts to dump functions into the module's function environment.
+-- 		Any member of the boot module is automatically dumped into the function environment which calls the function returned by this
+-- 		module script.
 --
 
 -- services
@@ -30,23 +32,16 @@ end
 function boot.warn(...)
 	warn(string.format(...))
 end
-function boot.log_table(tb, tabs)
-	tabs = tabs or 0
-	for k, v in pairs(tb) do
-		if type(v) ~= 'table' then
-			print(string.format('%s[%s]: %s', string.rep('\t', tabs), tostring(k), tostring(v)))
-		else
-			print(string.format('%s[%s]', string.rep('\t', tabs), tostring(k)))
-			boot.log_table(v, tabs + 1)
-		end
-	end
-end
 
 -- Fetching
 function boot.get(path)
-	local stems = {
+	-- NOTE:
+	-- 	If you plan on using this script in your own projects, MAKE SURE you change/remove these links right here, since your file structure may not be the
+	-- 		same as mine.
+	local links = {
 		['/lib'] = ReplicatedStorage.src.lib,
 		['/enum'] = ReplicatedStorage.src.enum,
+		['/data'] = ReplicatedStorage.src.data,
 		['/res'] = ReplicatedStorage.res,
 		['/shared/src'] = ReplicatedStorage.src,
 		['/server/src'] = ServerScriptService.src,
@@ -57,14 +52,14 @@ function boot.get(path)
 		return
 	end
 	local object
-	for stem, dir in pairs(stems) do
-		if string.match(path, '^' .. stem) then
+	for link, dir in pairs(links) do
+		if string.match(path, '^' .. link) then
 			object = dir
-			path = string.sub(path, string.len(stem) + 2)
+			path = string.sub(path, string.len(link) + 2)
 		end
 	end
 	if not object then
-		boot.warn('No directory stem found for path \'%s\'', path)
+		boot.warn('No directory link found for path \'%s\'', path)
 	end
 	for segment in string.gmatch(path, '([^/\.]+)') do
 		object = object:FindFirstChild(segment)
