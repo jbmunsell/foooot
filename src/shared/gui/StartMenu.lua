@@ -17,8 +17,6 @@ include '/lib/util/classutil'
 
 include '/lib/classes/gui/Screen'
 
-include '/shared/src/gui/PregameMenu'
-
 -- Module
 local StartMenu = classutil.extend(Screen)
 StartMenu.GuiPath = '/res/gui/StartMenu'
@@ -28,34 +26,23 @@ function StartMenu.Init(self)
 	-- Super
 	self.__super.Init(self)
 
-	-- Set visibility
-	self.container.PrimaryContainer.Visible = true
-	self.container.InstructionsContainer.Visible = false
-
 	-- Connect events
-	self.container.PrimaryContainer.PlayButton.Activated:connect(function()
-		-- Hide main
-		self.container.PrimaryContainer.Visible = false
-		self.container.InstructionsContainer.Visible = true
-
-		-- Wait for space
-		local space
-		ContextActionService:BindAction('InstructionSpacePress', function(name, state, input)
-			if state == Enum.UserInputState.Begin then
-				space = true
-			end
-		end, false, Enum.KeyCode.Space)
-		while not space do wait() end
-
-		-- Show a pregame menu
-		local pregame = PregameMenu.new()
-
-		-- Destroy
-		self:Destroy()
+	self.container.PlayButton.Activated:connect(function()
+		self.play_option = 'local'
+		log('set play option')
 	end)
 
 	-- Show
 	self:Show()
+end
+
+-- Poll play option
+function StartMenu.PollPlayOption(self)
+	-- Poll
+	log('polling play option')
+	while not self.play_option do wait() end
+	log('play option found')
+	return self.play_option
 end
 
 -- return module

@@ -79,10 +79,13 @@ end
 local Match = classutil.newclass()
 
 -- Init
-function Match.Init(self)
-	-- Constas
+function Match.Init(self, settings)
+	-- Consts
 	self.BALL_ELASTICITY_REGULAR = 0.6
 	self.BALL_ELASTICITY_BOUNCY  = 0.95
+
+	-- Settings
+	self.settings = settings
 
 	-- State
 	self.goal_detection_enabled    = true
@@ -124,6 +127,12 @@ function Match.Init(self)
 	end)
 end
 function Match.InitObjects(self)
+	-- Clear old
+	for i = 1, 2 do
+		local model = workspace:FindFirstChild('Controller_Player' .. i)
+		if model then model:Destroy() end
+	end
+
 	-- Create bin
 	self.bin = new('Model', workspace)
 
@@ -141,10 +150,10 @@ function Match.InitObjects(self)
 end
 function Match.InitControllers(self)
 	-- Create controller for keyboard left
-	self.controller_left = Controller.new(ControllerDeviceType.Keyboard, KeyboardControlType.Left)
-	self.controller_right = Controller.new(ControllerDeviceType.Keyboard, KeyboardControlType.Right)
-	self.controller_left:Connect(CharacterId.Player1)
-	self.controller_right:Connect(CharacterId.Player2)
+	self.controller_left = Controller.new(self.settings.player1_character, ControllerDeviceType.Keyboard, KeyboardControlType.Left)
+	self.controller_right = Controller.new(self.settings.player2_character, ControllerDeviceType.Keyboard, KeyboardControlType.Right)
+	self.controller_left:Connect(CharacterId.Player1, self.bin)
+	self.controller_right:Connect(CharacterId.Player2, self.bin)
 end
 
 -- Spawn ball
@@ -255,7 +264,7 @@ function Match.StartPlay(self)
 	self.controller_right:UnlockControls()
 end
 
--- Spawn powerup
+-- Powerup functions
 function Match.ClearPowerups(self)
 	for i = #self.powerups, 1, -1 do
 		local powerup = self.powerups[i]
@@ -304,7 +313,7 @@ function Match.SpawnRandomPowerup(self)
 end
 
 -- Register goal
--- 	Accepts a CharacterId enum of the player that scored
+-- 	Accepts a CharacterId enum of the player that scored as a parameter
 function Match.RegisterGoal(self, scorer)
 	-- Disable goal detection
 	self.goal_detection_enabled = false
@@ -316,7 +325,7 @@ function Match.RegisterGoal(self, scorer)
 	if score >= GOALS_TO_WIN then
 		score_text = 'wins'
 		delay(3, function()
-			self:Destroy()
+			self.completed = true
 		end)
 	else
 		-- Delay reset play
@@ -403,7 +412,7 @@ function Match.Update(self, dt)
 	end
 
 	-- Powerup technology
-	if self.powerup_detection_enabled then
+	if self.settings.powerups_enabled and self.powerup_detection_enabled then
 		-- Check all active powerups
 		for i = #self.powerups, 1, -1 do
 			local powerup = self.powerups[i]
@@ -418,6 +427,11 @@ function Match.Update(self, dt)
 		-- Step timer
 		self.powerup_spawn_timer:Step(dt)
 	end
+end
+
+-- Poll completion
+function Match.PollCompletion(self)
+	while not self.completed do wait() end
 end
 
 -- Destroy

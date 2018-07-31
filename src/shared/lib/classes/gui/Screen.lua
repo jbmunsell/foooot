@@ -42,6 +42,9 @@ end
 function Screen.Show(self)
 	self.screen.Enabled = true
 end
+function Screen.Hide(self)
+	self.screen.Enabled = false
+end
 
 -- Destroy
 function Screen.Destroy(self)

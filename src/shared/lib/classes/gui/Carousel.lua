@@ -42,6 +42,15 @@ function Carousel.Construct(self)
 		local tcom = clone(component, self.parent)
 	end
 end
+function Carousel.SetArrowSizeFactor(self, f)
+	local arrow_left = self.parent:FindFirstChild('ArrowLeft')
+	local arrow_right = self.parent:FindFirstChild('ArrowRight')
+	if arrow_left and arrow_right then
+		for _, arrow in pairs({arrow_left, arrow_right}) do
+			arrow.Size = UDim2.new(f, 0, f, 0)
+		end
+	end
+end
 
 -- Connect
 function Carousel.Connect(self)
@@ -67,6 +76,16 @@ function Carousel.SetData(self, data)
 	-- Set
 	self.data = data
 	self:SelectIndex(1)
+end
+function Carousel.SetSelectionChangedCallback(self, func)
+	if type(func) ~= 'function' then
+		error(string.format('Invalid argument #1 to Carousel.SetSelectionChangedCallback; function expected, got %s', type(func)))
+	end
+	self.SelectionChanged = func
+	self:SelectionChanged(self.data[self.index])
+end
+function Carousel.GetSelection(self)
+	return self.data[self.index]
 end
 
 -- Select index

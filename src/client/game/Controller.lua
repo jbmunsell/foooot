@@ -48,15 +48,16 @@ local Controller = classutil.newclass()
 
 -- Get character
 function Controller.GetCharacter(self)
-	return workspace:FindFirstChild('Controller_' .. tableutil.getkey(CharacterId, self.character_id))
+	return self.character
 end
 
 -- Init
-function Controller.Init(self, controller_device_type, ...)
+function Controller.Init(self, character, controller_device_type, ...)
 	-- Args
 	local args = {...}
 
 	-- Set
+	self.character = character
 	self.ControllerDeviceType = controller_device_type
 	if self.ControllerDeviceType == ControllerDeviceType.Keyboard then
 		self.KeyboardControlType = args[1]
@@ -81,9 +82,21 @@ function Controller.UnlockControls(self)
 end
 
 -- Connect
-function Controller.Connect(self, character_id)
+function Controller.Connect(self, character_id, matchbin)
 	-- Set player id
 	self.character_id = character_id
+
+	-- Create character
+	local character = clone('/res/models/characters/Character')
+	character.PrimaryPart.Color = self.character
+	character.BoxCollider.Transparency = 1
+	character.Parent = matchbin
+	self.character = character
+
+	-- Rotate if player 2
+	if character_id == CharacterId.Player2 then
+		character:SetPrimaryPartCFrame(character:GetPrimaryPartCFrame() * CFrame.Angles(0, math.pi, 0))
+	end
 
 	-- Switch controller device type
 	if self.ControllerDeviceType == ControllerDeviceType.Keyboard then
