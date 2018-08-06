@@ -15,11 +15,11 @@ local Switchboard = {}
 Switchboard.__index = Switchboard
 
 -- Constructor
-function Switchboard.new(cons)
-	local sb = setmetatable({}, Switchboard)
-	sb.connections = cons or {}
-	sb.actions = {}
-	return sb
+function Switchboard.new(connections)
+	local object = setmetatable({}, Switchboard)
+	object.connections = connections or {}
+	object.actions = {}
+	return object
 end
 
 -- Bind action
@@ -49,13 +49,6 @@ function Switchboard.UnbindAction(self, name)
 		end
 	end
 end
-function Switchboard.BindKey(self, key, func)
-	self:Bind(UserInputService.InputBegan:connect(function(input)
-		if input.KeyCode == key then
-			func(input)
-		end
-	end))
-end
 
 -- Release method
 function Switchboard.disconnect(self)
@@ -65,6 +58,8 @@ function Switchboard.disconnect(self)
 	for i, v in pairs(self.actions) do
 		ContextActionService:UnbindAction(v)
 	end
+	self.connections = {}
+	self.actions = {}
 end
 
 -- Destroy

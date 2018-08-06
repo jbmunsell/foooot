@@ -3,6 +3,7 @@ Foooot is a small Roblox football game, still in development. I really wanted to
 
 # Game information
 This little game is entirely client-sided. I'll work on adding online support later. For now, it's just intended for local multiplayer (two players on the same computer using the same keyboard).
+You can find the Trello that I'm using [here](https://trello.com/b/BPD5vjHT) to see what's coming up next.
 
 # Code information
 ## Boot module
