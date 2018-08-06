@@ -32,6 +32,9 @@ function StartMenu.Init(self)
 		log('set play option')
 	end)
 
+	-- Play music
+	workspace.GameSounds.GameMusic:Play()
+
 	-- Show
 	self:Show()
 end

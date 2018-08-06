@@ -16,6 +16,10 @@ local enum = {
 	LowSpeed   = 5,
 	BigBall    = 6,
 	SmallBall  = 7,
+	BigHead    = 8,
+	SmallHead  = 9,
+	GoldenBoot = 10,
+	LowGravity = 11,
 }
 
 -- return

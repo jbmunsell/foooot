@@ -45,8 +45,8 @@ local PLAYER_SPAWN_HEIGHT       = 45
 
 local POWERUP_CLASSES           = {}
 
-local POWERUP_SPAWN_TIME_MIN    = 15
-local POWERUP_SPAWN_TIME_MAX    = 30
+local POWERUP_SPAWN_TIME_MIN    = 10
+local POWERUP_SPAWN_TIME_MAX    = 15
 local POWERUP_STAY_MIN          = 30
 local POWERUP_STAY_MAX          = 45
 local POWERUP_SPAWN_X_MIN       = -55
@@ -68,7 +68,7 @@ end
 -- Powerup testing
 local TEST_SINGLE_POWERUP = false
 if TEST_SINGLE_POWERUP then
-	local path = '/shared/src/game/powerups/SmallBallPowerup'
+	local path = '/shared/src/game/powerups/LowGravityPowerup'
 	local powerup = require(get(path))
 	POWERUP_CLASSES = {
 		[powerup.Data.PowerupId] = powerup,
@@ -93,6 +93,7 @@ function Match.Init(self, settings)
 
 	-- Modifiers
 	self.ball_size_modifier = 1
+	self.gravity_modifier = 1
 
 	-- Tables
 	self.powerups = {}
@@ -171,7 +172,14 @@ function Match.AddBall(self, ball)
 
 	-- Listen for touched
 	local controllers = {self.controller_left, self.controller_right}
+	local last_sound = 0
+	local FREQUENCY_THRESHOLD = 0.1
 	ball.Touched:connect(function(hit)
+		local stamp = tick()
+		if ball.Velocity.magnitude > 1 and stamp - last_sound >= FREQUENCY_THRESHOLD then
+			last_sound = stamp
+			workspace.GameSounds.BallHit:Play()
+		end
 		for _, controller in pairs(controllers) do
 			if hit:IsDescendantOf(controller:GetCharacter()) then
 				self.touch_trackers[ball] = controller
@@ -219,19 +227,27 @@ function Match.SetBallSizeModifier(self, modifier)
 	end
 	self.ball_size_modifier = modifier
 end
+function Match.SetGravityModifier(self, modifier)
+	local f = (modifier / self.gravity_modifier)
+	workspace.Gravity = workspace.Gravity * f
+	self.gravity_modifier = modifier
+	for _, ball in pairs(self.balls) do
+		ball.UpForce.Force = ball.UpForce.Force * f
+	end
+end
 
 -- Start play
 function Match.StartPlay(self)
 	-- Hide goal text
 	self.gui:HideScoreLabel()
 
+	-- Clear powerups
+	self:ClearPowerups()
+
 	-- Spawn ball
 	self:ClearBalls()
 	self:SpawnBall()
 	self:SetBallsAnchored(true)
-
-	-- Clear powerups
-	self:ClearPowerups()
 
 	-- Enable goal detection
 	self.goal_detection_enabled = true

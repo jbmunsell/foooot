@@ -17,6 +17,8 @@ serve 'UserInputService'
 include '/lib/util/tableutil'
 include '/lib/util/classutil'
 
+include '/lib/FX'
+
 include '/lib/classes/Switchboard'
 
 include '/enum/ControllerDeviceType'
@@ -66,6 +68,8 @@ function Controller.Init(self, character, controller_device_type, ...)
 	-- Members
 	self.jump_modifier = 1.0
 	self.speed_modifier = 1.0
+	self.size_modifier = 1.0
+	self.kick_speed_modifier = 1.0
 
 	-- Update
 	self.heartbeat = RunService.Heartbeat:connect(function(dt)
@@ -91,6 +95,7 @@ function Controller.Connect(self, character_id, matchbin)
 	character.PrimaryPart.Color = self.character
 	character.BoxCollider.Transparency = 1
 	character.Parent = matchbin
+	character.PrimaryPart.AlignOrientation.Attachment1 = workspace.Terrain:FindFirstChild(tableutil.getkey(CharacterId, character_id) .. 'OrientationAttachment')
 	self.character = character
 
 	-- Rotate if player 2
@@ -118,6 +123,22 @@ function Controller.UnbindMappings(self)
 		self.board:disconnect()
 		self.board = nil
 	end
+end
+
+-- Set size multiplier
+function Controller.SetSizeModifier(self, modifier)
+	local f = modifier / self.size_modifier
+	local character = self:GetCharacter()
+	local old_height = character.PrimaryPart.Size.Y
+	FX.ScaleModel(character, f)
+	character:SetPrimaryPartCFrame(character:GetPrimaryPartCFrame() + Vector3.new(0, (character.PrimaryPart.Size.Y - old_height) * 0.5, 0))
+	character.PrimaryPart.BodyPositionX.MaxForce = character.PrimaryPart.BodyPositionX.MaxForce * (f ^ 3)
+	self.size_modifier = modifier
+end
+function Controller.SetKickSpeedModifier(self, modifier)
+	local character = self:GetCharacter()
+	character.PrimaryPart.Ankle.AngularSpeed = character.PrimaryPart.Ankle.AngularSpeed * (modifier / self.kick_speed_modifier)
+	self.kick_speed_modifier = modifier
 end
 
 -- Set velocity axis
@@ -151,6 +172,7 @@ function Controller.Update(self, dt)
 		local jump = self.mappings.jump
 		local kick = self.mappings.kick
 		local body_position = root.BodyPositionX
+		local movement_modifier = self.speed_modifier * self.size_modifier ^ 3
 		if left and UserInputService:IsKeyDown(left) then
 			body_position.Position = root.Position + Vector3.new(-BASE_LINEAR_VELOCITY * self.speed_modifier, 0, 0)
 		elseif right and UserInputService:IsKeyDown(right) then
@@ -164,6 +186,7 @@ function Controller.Update(self, dt)
 			if root.Velocity.Y <= 0.1 then
 				local diff = character.BoxCollider.Position.Y - (character.BoxCollider.Size.Y + workspace.Ground.Size.Y) * .5 - workspace.Ground.Position.Y
 				if diff <= 0.1 then
+					workspace.GameSounds.PlayerJump:Play()
 					self:SetVelocityAxis('Y', BASE_JUMP_POWER * self.jump_modifier)
 				end
 				-- local touching = character.BoxCollider:GetTouchingParts()
@@ -175,9 +198,9 @@ function Controller.Update(self, dt)
 
 		-- Kick
 		if kick and UserInputService:IsKeyDown(kick) then
-			root.Hip.TargetAngle = -50
+			root.Ankle.TargetAngle = -70
 		else
-			root.Hip.TargetAngle = 10
+			root.Ankle.TargetAngle = 10
 		end
 	end
 end
