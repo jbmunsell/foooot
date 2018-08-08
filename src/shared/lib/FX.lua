@@ -164,7 +164,6 @@ function FX.DestroyEmitterContainer(container)
 	end
 
 	-- Wait max and destroy
-	print(mlife)
 	delay(mlife, function()
 		container:Destroy()
 	end)
