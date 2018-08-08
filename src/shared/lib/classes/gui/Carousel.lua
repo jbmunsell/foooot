@@ -11,6 +11,7 @@ require(game:GetService('ReplicatedStorage').src.boot)()
 
 -- includes
 include '/lib/util/classutil'
+include '/lib/util/tableutil'
 
 -- Module
 local Carousel = classutil.newclass()
@@ -101,6 +102,17 @@ function Carousel.SelectIndex(self, index)
 	-- Grab thing
 	if self.SelectionChanged then
 		self:SelectionChanged(self.data[self.index])
+	end
+end
+function Carousel.SelectRandomIndex(self)
+	self:SelectIndex(math.random(1, #self.data))
+end
+function Carousel.SelectItem(self, item)
+	local index = tableutil.getkey(self.data, item)
+	if index then
+		self:SelectIndex(index)
+	else
+		error('Attempt to select an item that isn\'t part of the carousel\'s data')
 	end
 end
 function Carousel.ShiftRight(self)

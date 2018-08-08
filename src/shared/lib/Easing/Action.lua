@@ -26,17 +26,33 @@ function Action.hit(ob, prop, val)
 		a = val
 	end
 
+	-- Create object
+	local object = {}
+
+	-- Capture scale
+	if FX and prop == 'ModelScale' and ob:IsA('Model') and ob.PrimaryPart then
+		local s = ob.PrimaryPart.Size
+		local m = math.max(s.X, s.Y, s.Z)
+		object._full_scale = m
+		for _, axis in pairs({'X', 'Y', 'Z'}) do
+			if s[axis] == m then
+				object._full_scale_axis = axis
+				break
+			end
+		end
+	end
+
 	-- Params and starting set
 	if not b then
 		b = a
 		if prop == "PrimaryPartCFrame" then
 			a = ob:GetPrimaryPartCFrame()
 		elseif GLib and prop == "FrameTransparency" then
-			a = GLib.GetTransparency(ob)
-		elseif FX and ((prop == "Transparency" and not ob:IsA("BasePart") and not ob:IsA("Decal") and not ob:IsA("Texture")) 
-						or (prop == "ModelTransparency"))
-		then
-			a = FX.GetTransparency(ob)
+			a = GLib.GetFrameTransparency(ob)
+		elseif FX and prop == "ModelTransparency" then
+			a = FX.GetModelTransparency(ob)
+		elseif FX and prop == "ModelScale" then
+			a = 1
 		else
 			a = ob[prop]
 		end
@@ -44,11 +60,11 @@ function Action.hit(ob, prop, val)
 		if prop == "PrimaryPartCFrame" then
 			ob:SetPrimaryPartCFrame(a)
 		elseif GLib and prop == "FrameTransparency" then
-			GLib.SetTransparency(ob, a)
-		elseif FX and ((prop == "Transparency" and not ob:IsA("BasePart") and not ob:IsA("Decal") and not ob:IsA("Texture"))
-						or (prop == "ModelTransparency"))
-		then
-			FX.SetTransparency(ob, a)
+			GLib.SetFrameTransparency(ob, a)
+		elseif FX and prop == 'ModelTransparency' then
+			FX.SetModelTransparency(ob, a)
+		elseif FX and prop == 'ModelScale' then
+			FX.ScaleModel(ob, a)
 		else
 			ob[prop] = a
 		end
@@ -58,13 +74,14 @@ function Action.hit(ob, prop, val)
 	local lf = Action.Easing.Lerp.SelectFunction(a, b)
 
 	-- Create object
-	return {
-		ob = ob,
-		prop = prop,
-		start = a,
-		fin = b,
-		lerp = lf,
-	}
+	object.ob = ob
+	object.prop = prop
+	object.start = a
+	object.fin = b
+	object.lerp = lf
+
+	-- return object
+	return object
 end
 
 -- Constructor
@@ -122,11 +139,15 @@ function Action.step(self, e)
 			if prop == "PrimaryPartCFrame" then
 				self.ob:SetPrimaryPartCFrame(dl)
 			elseif hit.prop == "FrameTransparency" then
-				GLib.SetTransparency(self.ob, dl)
-			elseif hit.prop == "Transparency" and not self.ob:IsA("BasePart") and not self.ob:IsA("Decal") and not self.ob:IsA("Texture") then
-				FX.SetTransparency(self.ob, dl)
+				GLib.SetFrameTransparency(self.ob, dl)
 			elseif hit.prop == "ModelTransparency" then
-				FX.SetTransparency(self.ob, dl)
+				FX.SetModelTransparency(self.ob, dl)
+			elseif hit.prop == 'ModelScale' then
+				if hit._full_scale_axis then
+					FX.ScaleModel(self.ob, (hit._full_scale / self.ob.PrimaryPart.Size[hit._full_scale_axis]) * dl)
+				else
+					error('Attempt to scale thing with no full scale axis')
+				end
 			else
 				self.ob[prop] = dl
 			end

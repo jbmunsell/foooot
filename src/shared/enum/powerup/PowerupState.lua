@@ -10,7 +10,8 @@
 local enum = {
 	Spawned		= 0,
 	Active		= 1,
-	Destroyed	= 2,
+	Despawned	= 2,
+	Destroyed	= 3,
 }
 
 -- return

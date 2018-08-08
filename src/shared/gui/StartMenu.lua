@@ -34,6 +34,9 @@ function StartMenu.Init(self)
 
 	-- Play music
 	workspace.GameSounds.GameMusic:Play()
+	for _, sound in pairs(workspace.GameSounds.AmbientCrowd:GetChildren()) do
+		sound:Play()
+	end
 
 	-- Show
 	self:Show()

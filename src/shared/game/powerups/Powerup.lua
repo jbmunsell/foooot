@@ -15,6 +15,8 @@ include '/lib/Easing'
 include '/lib/util/tableutil'
 include '/lib/util/classutil'
 
+include '/data/Flags'
+
 include '/enum/powerup/PowerupId'
 include '/enum/powerup/PowerupEffectType'
 include '/enum/powerup/PowerupState'
@@ -40,8 +42,11 @@ function Powerup.Init(self, match)
 
 	-- Assing polarity
 	if self.Data.PowerupEffectType == PowerupEffectType.Advantage or self.Data.PowerupEffectType == PowerupEffectType.Disadvantage then
-		self.polarity = (tableutil.getrandom(POWERUP_POLARITIES))
-		log('selected polarity')
+		if Flags.POWERUPS_BIPOLAR then
+			self.polarity = (tableutil.getrandom(POWERUP_POLARITIES))
+		else
+			self.polarity = (self.Data.PowerupEffectType == PowerupEffectType.Advantage and PowerupEffectType.Good or PowerupEffectType.Bad)
+		end
 	end
 end
 
@@ -52,16 +57,34 @@ function Powerup.Spawn(self, position)
 
 	-- Create new model
 	-- 	Pull the color from our polarity, and if we don't have a polarity (neutral powerup) then use the powerup effect type (which will be neutral)
-	self.model = clone('/res/models/powerups/' .. tableutil.getkey(PowerupId, self.Data.PowerupId), self.match.bin)
+	self.model = clone('/res/models/powerups/' .. tableutil.getkey(PowerupId, self.Data.PowerupId))
 	self.model.Coin.Color = EFFECT_TYPE_COLORS[self.polarity or self.Data.PowerupEffectType]
 	self:SetPosition(position)
 
+	-- Play blop
+	workspace.GameSounds.PowerupSpawn:Play()
+
 	-- Ease size in
-	-- Easing.Ease(.4, 'outBack', Easing.Action(self.model, 'ModelScale', 0, 1))
-	-- Easing.Ease(.18, 'outQuad', Easing.Action(self.model, 'ModelTransparency', 1, 0))
+	Easing.Ease(.4, 'outBack', Easing.Action(self.model, 'ModelScale', 0.2, 1))
+	Easing.Ease(.18, 'outQuad', Easing.Action(self.model, 'ModelTransparency', 1, 0))
+
+	-- Set parent
+	self.model.Parent = self.match.bin
 end
 function Powerup.ShowCollection(self)
-	self.model.Parent = nil
+	-- Sound
+	if self.polarity and self.polarity == PowerupEffectType.Bad then
+		workspace.GameSounds.PowerupBad:Play()
+	else
+		workspace.GameSounds.PowerupGood:Play()
+	end
+
+	-- Collect
+	Easing.EaseWithCallback(.3, 'outCubic', Easing.Action(self.model, 'ModelScale', 1.75), function()
+		Easing.EaseWithCallback(.3, 'inCubic', Easing.Action(self.model, 'ModelScale', 0.1), function()
+			self.model.Parent = nil
+		end)
+	end)
 end
 function Powerup.Activate(self, ball)
 	self.state = PowerupState.Active
@@ -72,8 +95,14 @@ function Powerup.Activate(self, ball)
 		end)
 	end
 end
-function Powerup.ShowDespawn(self)
-	-- TODO
+function Powerup.Despawn(self)
+	self.state = PowerupState.Despawned
+	Easing.EaseWithCallback(.4, 'inBack', Easing.Action(self.model, 'ModelScale', 1, 0.1), function()
+		self:Destroy()
+	end)
+	delay(.1, function()
+		Easing.Ease(.2, 'linear', Easing.Action(self.model, 'ModelTransparency', 1))
+	end)
 end
 
 -- Set position

@@ -10,6 +10,7 @@
 require(game:GetService('ReplicatedStorage').src.boot)()
 
 -- services
+serve 'UserInputService'
 serve 'RunService'
 serve 'Players'
 
@@ -17,14 +18,19 @@ serve 'Players'
 include '/lib/util/tableutil'
 include '/lib/util/classutil'
 
+include '/lib/FX'
+include '/lib/Easing'
+
 include '/lib/classes/Timer'
+include '/lib/classes/Spring'
+
+include '/data/Flags'
 
 include '/client/src/game/Controller'
 
 include '/shared/src/gui/MatchGui'
 
-include '/enum/ControllerDeviceType'
-include '/enum/KeyboardControlType'
+include '/enum/ControlType'
 include '/enum/CharacterId'
 include '/enum/powerup/PowerupId'
 include '/enum/powerup/PowerupState'
@@ -36,7 +42,7 @@ local localPlayer = Players.LocalPlayer
 ----------------------------------------------------------------------------------------------
 -- Consts
 ----------------------------------------------------------------------------------------------
-local GOALS_TO_WIN              = 7
+local GOALS_TO_WIN              = (Flags.GOLDEN_GOAL and 1 or 7)
 
 local BALL_SPAWN_POSITION       = CFrame.new(0, 75, 0)
 local BALL_SPAWN_VELOCITY_RANGE = 20
@@ -68,7 +74,7 @@ end
 -- Powerup testing
 local TEST_SINGLE_POWERUP = false
 if TEST_SINGLE_POWERUP then
-	local path = '/shared/src/game/powerups/LowGravityPowerup'
+	local path = '/shared/src/game/powerups/GoldenBootPowerup'
 	local powerup = require(get(path))
 	POWERUP_CLASSES = {
 		[powerup.Data.PowerupId] = powerup,
@@ -112,10 +118,12 @@ function Match.Init(self, settings)
 
 	-- Gui
 	self.gui = MatchGui.new()
+	UserInputService.MouseIconEnabled = false
 
 	-- Init
 	self:InitObjects()
 	self:InitControllers()
+	self:InitCamera()
 
 	-- Start play
 	spawn(function()
@@ -135,7 +143,7 @@ function Match.InitObjects(self)
 	end
 
 	-- Create bin
-	self.bin = new('Model', workspace)
+	self.bin = new('Model', workspace, { Name = 'MatchBin' })
 
 	-- Create ball
 	self.balls = {}
@@ -143,18 +151,42 @@ function Match.InitObjects(self)
 	-- Tag goals
 	self.left_goal = workspace.GoalLeft
 	self.right_goal = workspace.GoalRight
-
-	-- Set camera point
-	local camera = workspace.CurrentCamera
-	camera.CFrame = CFrame.new(Vector3.new(0, 90, 350), Vector3.new(0, 90, 0))
-	camera.FieldOfView = 20
 end
 function Match.InitControllers(self)
 	-- Create controller for keyboard left
-	self.controller_left = Controller.new(self.settings.player1_character, ControllerDeviceType.Keyboard, KeyboardControlType.Left)
-	self.controller_right = Controller.new(self.settings.player2_character, ControllerDeviceType.Keyboard, KeyboardControlType.Right)
+	self.controller_left = Controller.new(self.settings.player1_character, ControlType.KeyboardLeft)
+	self.controller_right = Controller.new(self.settings.player2_character, ControlType.KeyboardRight)
 	self.controller_left:Connect(CharacterId.Player1, self.bin)
 	self.controller_right:Connect(CharacterId.Player2, self.bin)
+end
+
+-- Camera stuff
+function Match.InitCamera(self)
+	-- Set camera point
+	local camera = workspace.CurrentCamera
+	local CAMERA_CFRAME = CFrame.new(Vector3.new(0, 90, 350), Vector3.new(0, 90, 0))
+	camera.FieldOfView = 20
+
+	-- Create cam shake spring
+	self.camshake = Spring.new(Vector3.new(0, 0, 0), Vector3.new(0, 0, 0))
+	self.camshake.speed = 20
+
+	-- Connect to render step for shake
+	RunService.RenderStepped:connect(function(dt)
+		self.camshake:Update(dt)
+		camera.CFrame = CAMERA_CFRAME + self.camshake.position
+	end)
+end
+function Match.ShakeCamera(self)
+	local JIP = 40
+	spawn(function()
+		local connection = RunService.Heartbeat:connect(function(dt)
+			self.camshake.velocity = self.camshake.velocity + Vector3.new(math.random(-JIP, JIP), math.random(-JIP, JIP), 0)
+		end)
+		delay(1.4, function()
+			connection:disconnect()
+		end)
+	end)
 end
 
 -- Spawn ball
@@ -174,11 +206,33 @@ function Match.AddBall(self, ball)
 	local controllers = {self.controller_left, self.controller_right}
 	local last_sound = 0
 	local FREQUENCY_THRESHOLD = 0.1
-	ball.Touched:connect(function(hit)
+	ball.PrimaryPart.Touched:connect(function(hit)
+		-- Particles
+		local offset = (hit.Position - ball.PrimaryPart.Position)
+		local contact = CFrame.new(ball.PrimaryPart.Position + offset.unit * ball.PrimaryPart.Size.X * .5)
+		FX.EmitAmountFromContainer(get('/res/emitters/BallHit'), contact, 1)
+
+		-- Crossbar reaction
+		if hit.Name == 'Crossbar' and ball.PrimaryPart.Velocity.magnitude > 20 then
+			workspace.GameSounds.BallHitBar:Play()
+			workspace.GameSounds.CrossbarPing:Play()
+			-- Commented out because it's not a good check. Since velocity is already changed by the time touched fires, we don't know if it was a rebound
+			-- if (-ball.PrimaryPart.Velocity.X * hit.Parent.GoalPlane.CFrame.lookVector.Z) > 0 then
+				workspace.GameSounds.NearMiss:Play()
+			-- end
+		end
+
+		-- Do hit sound
 		local stamp = tick()
-		if ball.Velocity.magnitude > 1 and stamp - last_sound >= FREQUENCY_THRESHOLD then
+		if ball.PrimaryPart.Velocity.magnitude > 1 and stamp - last_sound >= FREQUENCY_THRESHOLD then
+			local sound = workspace.GameSounds.BallHit
+			for _, powerup in pairs(self.powerups) do
+				if powerup.state == PowerupState.Active and powerup.Data.PowerupId == PowerupId.BouncyBall then
+					sound = workspace.GameSounds.BouncyBallHit
+				end
+			end
 			last_sound = stamp
-			workspace.GameSounds.BallHit:Play()
+			sound:Play()
 		end
 		for _, controller in pairs(controllers) do
 			if hit:IsDescendantOf(controller:GetCharacter()) then
@@ -193,8 +247,8 @@ function Match.SpawnBall(self, position)
 	local ball = clone('/res/models/balls/StandardBall')
 	self:SetBallElasticity(ball, self.BALL_ELASTICITY_REGULAR)
 	self:ChangeSingleBallSizeModifier(ball, 1, self.ball_size_modifier)
-	ball.CFrame = (position and CFrame.new(position) or BALL_SPAWN_POSITION)
-	ball.Velocity = Vector3.new(
+	ball.PrimaryPart.CFrame = (position and CFrame.new(position) or BALL_SPAWN_POSITION)
+	ball.PrimaryPart.Velocity = Vector3.new(
 		math.random(-BALL_SPAWN_VELOCITY_RANGE, BALL_SPAWN_VELOCITY_RANGE),
 		math.random(0, BALL_SPAWN_VELOCITY_RANGE),
 		0)
@@ -202,12 +256,12 @@ function Match.SpawnBall(self, position)
 end
 function Match.SetBallsAnchored(self, anchored)
 	for _, ball in pairs(self.balls) do
-		ball.Anchored = anchored
+		ball.PrimaryPart.Anchored = anchored
 	end
 end
 function Match.SetBallElasticity(self, ball, elasticity)
-	local old = ball.CustomPhysicalProperties
-	ball.CustomPhysicalProperties = PhysicalProperties.new(
+	local old = ball.PrimaryPart.CustomPhysicalProperties
+	ball.PrimaryPart.CustomPhysicalProperties = PhysicalProperties.new(
 		old.Density,
 		old.Friction,
 		elasticity,
@@ -217,8 +271,8 @@ function Match.SetBallElasticity(self, ball, elasticity)
 end
 function Match.ChangeSingleBallSizeModifier(self, ball, old, modifier)
 	local factor = modifier / old
-	ball.Size = ball.Size * factor
-	ball.UpForce.Force = ball.UpForce.Force * math.pow(factor, 3)
+	FX.ScaleModel(ball, factor)
+	ball.PrimaryPart.UpForce.Force = ball.PrimaryPart.UpForce.Force * math.pow(factor, 3)
 end
 function Match.SetBallSizeModifier(self, modifier)
 	local old = self.ball_size_modifier
@@ -232,20 +286,16 @@ function Match.SetGravityModifier(self, modifier)
 	workspace.Gravity = workspace.Gravity * f
 	self.gravity_modifier = modifier
 	for _, ball in pairs(self.balls) do
-		ball.UpForce.Force = ball.UpForce.Force * f
+		ball.PrimaryPart.UpForce.Force = ball.PrimaryPart.UpForce.Force * f
 	end
 end
 
 -- Start play
 function Match.StartPlay(self)
-	-- Hide goal text
-	self.gui:HideScoreLabel()
+	-- Cleanup play
+	self:CleanupPlay()
 
-	-- Clear powerups
-	self:ClearPowerups()
-
-	-- Spawn ball
-	self:ClearBalls()
+	-- Spawn new ball
 	self:SpawnBall()
 	self:SetBallsAnchored(true)
 
@@ -278,6 +328,14 @@ function Match.StartPlay(self)
 	self:SetBallsAnchored(false)
 	self.controller_left:UnlockControls()
 	self.controller_right:UnlockControls()
+end
+function Match.CleanupPlay(self)
+	-- Hide goal
+	self.gui:HideScoreLabel()
+
+	-- Clear stuff
+	self:ClearPowerups()
+	self:ClearBalls()
 end
 
 -- Powerup functions
@@ -323,7 +381,7 @@ function Match.SpawnRandomPowerup(self)
 	-- Delay destruction if still spawned
 	delay(math.random(POWERUP_STAY_MIN, POWERUP_STAY_MAX), function()
 		if powerup.state == PowerupState.Spawned then
-			powerup:Destroy()
+			powerup:Despawn()
 		end
 	end)
 end
@@ -333,6 +391,18 @@ end
 function Match.RegisterGoal(self, scorer)
 	-- Disable goal detection
 	self.goal_detection_enabled = false
+
+	-- Play goal scored sound
+	local sound = workspace.GameSounds.GoalScored
+	sound.TimePosition = 1.0
+	sound.Volume = 0.5
+	sound:Play()
+	delay(3.5, function()
+		Easing.Ease(1.0, 'linear', Easing.Action(sound, 'Volume', 0))
+	end)
+
+	-- Shake
+	self:ShakeCamera()
 
 	-- Check win conditions
 	local score_text = 'scored'
@@ -360,20 +430,21 @@ function Match.CheckGoals(self)
 	-- Check all balls
 	for _, ball in pairs(self.balls) do
 		-- Tag stuff
+		local part = ball.PrimaryPart
 		local left_goal = self.left_goal
 		local right_goal = self.right_goal
 
 		-- Try left
 		local left_goal_plane = left_goal.GoalPlane
 		local right_goal_plane = right_goal.GoalPlane
-		if (ball.Position.X + ball.Size.X * .5) < left_goal_plane.Position.X and ball.Position.Y < left_goal_plane.Position.Y + left_goal_plane.Size.Y * .5
-		and ball.Position.Y > left_goal_plane.Position.Y - left_goal_plane.Size.Y * .5 then
+		if (part.Position.X + part.Size.X * .5) < left_goal_plane.Position.X and part.Position.Y < left_goal_plane.Position.Y + left_goal_plane.Size.Y * .5
+		and part.Position.Y > left_goal_plane.Position.Y - left_goal_plane.Size.Y * .5 then
 			self:RegisterGoal(CharacterId.Player2)
 			break
 
 		-- Try right
-		elseif (ball.Position.X - ball.Size.X * .5) > right_goal_plane.Position.X and ball.Position.Y < right_goal_plane.Position.Y + right_goal_plane.Size.Y * .5
-		and ball.Position.Y > right_goal_plane.Position.Y - right_goal_plane.Size.Y * .5 then
+		elseif (part.Position.X - part.Size.X * .5) > right_goal_plane.Position.X and part.Position.Y < right_goal_plane.Position.Y + right_goal_plane.Size.Y * .5
+		and part.Position.Y > right_goal_plane.Position.Y - right_goal_plane.Size.Y * .5 then
 			self:RegisterGoal(CharacterId.Player1)
 			break
 		end
@@ -384,13 +455,13 @@ end
 function Match.CheckPowerupAgainstBalls(self, powerup)
 	-- Check all balls
 	for _, ball in pairs(self.balls) do
-		local bnp = (ball.Position - Vector3.new(0, 0, ball.Position.Z)) - powerup.position
+		local bnp = (ball.PrimaryPart.Position - Vector3.new(0, 0, ball.PrimaryPart.Position.Z)) - powerup.position
 		local dist = bnp:Dot(bnp)
-		if dist <= math.pow((ball.Size.X + powerup.model.Coin.Size.Y) * .5, 2) then
+		if dist <= math.pow((ball.PrimaryPart.Size.X + powerup.model.Coin.Size.Y) * .5, 2) then
 			-- Collect powerup
 			powerup:ShowCollection()
 			powerup:Activate(ball)
-			self.gui:ShowPowerupLabel(string.upper(powerup.Data.DisplayName), 2)
+			self.gui:ShowPowerupLabel(string.upper(powerup.Data.DisplayName), 2, powerup.polarity)
 			break
 		end
 	end
@@ -452,6 +523,12 @@ end
 
 -- Destroy
 function Match.Destroy(self)
+	-- Cleanup play
+	self:CleanupPlay()
+
+	-- Put mouse back
+	UserInputService.MouseIconEnabled = true
+
 	-- Destroy gui
 	self.gui:Destroy()
 

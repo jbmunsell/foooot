@@ -33,13 +33,13 @@ BouncyBallPowerup.Data = {
 function BouncyBallPowerup.ApplyEffect(self, ball)
 	for _, ball in pairs(self.match.balls) do
 		self.match:SetBallElasticity(ball, self.match.BALL_ELASTICITY_BOUNCY)
-		ball.BrickColor = BrickColor.new('Magenta')
+		ball.PrimaryPart.BrickColor = BrickColor.new('Magenta')
 	end
 end
 function BouncyBallPowerup.RemoveEffect(self, ball)
 	for _, ball in pairs(self.match.balls) do
 		self.match:SetBallElasticity(ball, self.match.BALL_ELASTICITY_REGULAR)
-		ball.BrickColor = BrickColor.new('Lily white')
+		ball.PrimaryPart.BrickColor = BrickColor.new('Lily white')
 	end
 end
 

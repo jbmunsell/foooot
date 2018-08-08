@@ -21,29 +21,12 @@ include '/lib/FX'
 
 include '/lib/classes/Switchboard'
 
-include '/enum/ControllerDeviceType'
-include '/enum/KeyboardControlType'
+include '/enum/ControlType'
 include '/enum/CharacterId'
 
 -- Consts
 local BASE_JUMP_POWER      = 48
 local BASE_LINEAR_VELOCITY = 14
-
--- Default mappings
-local DEFAULT_MAPPINGS = {
-	[KeyboardControlType.Left] = {
-		['jump']  = Enum.KeyCode.W,
-		['left']  = Enum.KeyCode.A,
-		['right'] = Enum.KeyCode.D,
-		['kick']  = Enum.KeyCode.Space,
-	},
-	[KeyboardControlType.Right] = {
-		['jump']  = Enum.KeyCode.Up,
-		['left']  = Enum.KeyCode.Left,
-		['right'] = Enum.KeyCode.Right,
-		['kick']  = Enum.KeyCode.P,
-	},
-}
 
 -- Module
 local Controller = classutil.newclass()
@@ -54,16 +37,10 @@ function Controller.GetCharacter(self)
 end
 
 -- Init
-function Controller.Init(self, character, controller_device_type, ...)
-	-- Args
-	local args = {...}
-
+function Controller.Init(self, character, control_type)
 	-- Set
 	self.character = character
-	self.ControllerDeviceType = controller_device_type
-	if self.ControllerDeviceType == ControllerDeviceType.Keyboard then
-		self.KeyboardControlType = args[1]
-	end
+	self.ControlType = control_type
 
 	-- Members
 	self.jump_modifier = 1.0
@@ -104,9 +81,7 @@ function Controller.Connect(self, character_id, matchbin)
 	end
 
 	-- Switch controller device type
-	if self.ControllerDeviceType == ControllerDeviceType.Keyboard then
-		self:BindControlMappings(DEFAULT_MAPPINGS[self.KeyboardControlType])
-	end
+	self:BindControlMappings(require(script.Parent.mappings:FindFirstChild(tableutil.getkey(ControlType, self.ControlType))))
 end
 
 -- Bind control mappings
@@ -164,44 +139,41 @@ function Controller.Update(self, dt)
 	-- Controls locked
 	if self.controls_locked then return end
 
-	-- Handle keyboard controls
-	if self.ControllerDeviceType == ControllerDeviceType.Keyboard then
-		-- Directional
-		local left  = self.mappings.left
-		local right = self.mappings.right
-		local jump = self.mappings.jump
-		local kick = self.mappings.kick
-		local body_position = root.BodyPositionX
-		local movement_modifier = self.speed_modifier * self.size_modifier ^ 3
-		if left and UserInputService:IsKeyDown(left) then
-			body_position.Position = root.Position + Vector3.new(-BASE_LINEAR_VELOCITY * self.speed_modifier, 0, 0)
-		elseif right and UserInputService:IsKeyDown(right) then
-			body_position.Position = root.Position + Vector3.new(BASE_LINEAR_VELOCITY * self.speed_modifier, 0, 0)
-		else
-			body_position.Position = root.Position
-		end
+	-- Controls
+	local left  = self.mappings.left
+	local right = self.mappings.right
+	local jump = self.mappings.jump
+	local kick = self.mappings.kick
+	local body_position = root.BodyPositionX
+	local movement_modifier = self.speed_modifier * self.size_modifier ^ 3
+	if left and UserInputService:IsKeyDown(left) then
+		body_position.Position = root.Position + Vector3.new(-BASE_LINEAR_VELOCITY * self.speed_modifier, 0, 0)
+	elseif right and UserInputService:IsKeyDown(right) then
+		body_position.Position = root.Position + Vector3.new(BASE_LINEAR_VELOCITY * self.speed_modifier, 0, 0)
+	else
+		body_position.Position = root.Position
+	end
 
-		-- Jump
-		if jump and UserInputService:IsKeyDown(jump) then
-			if root.Velocity.Y <= 0.1 then
-				local diff = character.BoxCollider.Position.Y - (character.BoxCollider.Size.Y + workspace.Ground.Size.Y) * .5 - workspace.Ground.Position.Y
-				if diff <= 0.1 then
-					workspace.GameSounds.PlayerJump:Play()
-					self:SetVelocityAxis('Y', BASE_JUMP_POWER * self.jump_modifier)
-				end
-				-- local touching = character.BoxCollider:GetTouchingParts()
-				-- if tableutil.getkey(touching, workspace.Ground) then
-				-- 	self:SetVelocityAxis('Y', BASE_JUMP_POWER)
-				-- end
+	-- Jump
+	if jump and UserInputService:IsKeyDown(jump) then
+		if root.Velocity.Y <= 0.1 then
+			local diff = character.BoxCollider.Position.Y - (character.BoxCollider.Size.Y + workspace.Ground.Size.Y) * .5 - workspace.Ground.Position.Y
+			if diff <= 0.1 then
+				workspace.GameSounds.PlayerJump:Play()
+				self:SetVelocityAxis('Y', BASE_JUMP_POWER * self.jump_modifier)
 			end
+			-- local touching = character.BoxCollider:GetTouchingParts()
+			-- if tableutil.getkey(touching, workspace.Ground) then
+			-- 	self:SetVelocityAxis('Y', BASE_JUMP_POWER)
+			-- end
 		end
+	end
 
-		-- Kick
-		if kick and UserInputService:IsKeyDown(kick) then
-			root.Ankle.TargetAngle = -70
-		else
-			root.Ankle.TargetAngle = 10
-		end
+	-- Kick
+	if kick and UserInputService:IsKeyDown(kick) then
+		root.Ankle.TargetAngle = -70
+	else
+		root.Ankle.TargetAngle = 10
 	end
 end
 

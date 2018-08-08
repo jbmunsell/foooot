@@ -1,15 +1,16 @@
 --
 --	Jackson Munsell
 --	07/19/18
---	ControllerDeviceType.lua
+--	ControlType.lua
 --
---	Controller device type enum
+--	Control type enum
 --
 
 -- Enum
 local enum = {
-	Keyboard = 0,
-	Gamepad  = 1,
+	KeyboardLeft  = 0,
+	KeyboardRight = 1,
+	Gamepad       = 2,
 }
 
 -- return

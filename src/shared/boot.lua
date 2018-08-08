@@ -88,6 +88,8 @@ function boot.include(path)
 	local module = boot.get(path)
 	if module then
 		getfenv(2)[module.Name] = require(module)
+	else
+		error(string.format('Bad path to include: %s', path))
 	end
 end
 
