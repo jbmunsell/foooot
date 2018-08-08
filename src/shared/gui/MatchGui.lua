@@ -17,6 +17,14 @@ include '/lib/util/classutil'
 include '/lib/classes/gui/Screen'
 
 include '/enum/CharacterId'
+include '/enum/powerup/PowerupEffectType'
+
+-- Consts
+local POWERUP_TEXT_COLORS = {
+	[PowerupEffectType.Neutral] = Color3.fromRGB(236, 217, 56),
+	[PowerupEffectType.Good]    = Color3.fromRGB(12, 193, 0),
+	[PowerupEffectType.Bad]     = Color3.fromRGB(236, 56, 56),
+}
 
 -- Module
 local MatchGui = classutil.extend(Screen)
@@ -58,21 +66,22 @@ function MatchGui.SetCountdownText(self, count)
 	self.container.CountdownLabel.Text = tostring(count)
 end
 function MatchGui.ShowCountdownLabel(self)
-	GLib.SetTransparency(self.container.CountdownLabel, 0)
+	GLib.SetFrameTransparency(self.container.CountdownLabel, 0)
 end
 
 -- Show score label
 function MatchGui.ShowScoreLabel(self, text)
 	local label = self.container.PlayerScoreLabel
 	label.Text = text
-	GLib.SetTransparency(label, 0)
+	GLib.SetFrameTransparency(label, 0)
 end
 
 -- Show powerup label
-function MatchGui.ShowPowerupLabel(self, text, duration)
+function MatchGui.ShowPowerupLabel(self, text, duration, polarity)
 	local label = self.container.PowerupLabel
 	label.Text = text
-	GLib.SetTransparency(label, 0)
+	label.TextColor3 = POWERUP_TEXT_COLORS[polarity or PowerupEffectType.Neutral]
+	GLib.SetFrameTransparency(label, 0)
 	delay(duration, function()
 		self:HidePowerupLabel()
 	end)

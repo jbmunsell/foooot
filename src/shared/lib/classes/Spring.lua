@@ -24,30 +24,35 @@ function Spring.new(pos, goal)
 	object.speed = 1
 	object.damping = 1
 
+	-- Set velocity based on type
+	object.velocity = (object.goal) * 0
+
 	-- return object
 	return object
 end
 
 -- Setters
-function Spring.set_position(self, position)
+function Spring.SetPosition(self, position)
 	self.position = position
 end
-function Spring.set_goal(self, goal)
+function Spring.SetGoal(self, goal)
 	self.goal = goal
 end
-function Spring.set_speed(self, speed)
+function Spring.SetSpeed(self, speed)
 	self.speed = speed
 end
-function Spring.set_damping(self, damping)
+function Spring.SetDamping(self, damping)
 	self.damping = damping
 end
 
 -- Update
-function Spring.update(dt)
+function Spring.Update(self, dt)
 	-- Coefficients
 	local ppc, pvc, vvc, vpc
 	
 	-- Over damped
+	local damping = self.damping
+	local w = self.speed
 	if damping > 1 then
 		local za = -w * damping
 		local zb = w * math.sqrt(damping * damping - 1)

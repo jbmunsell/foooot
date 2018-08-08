@@ -16,7 +16,7 @@ GLib.GOLDEN_RATIO = 1.61803398875
 -- 	This section is for functions that recursively set the transparency of an entire frame
 -- 	based on the original values of properties. For example, if you have a frame that
 -- 	is at 0.7 transparency and you call GLib.SetTransparency(frame, 0.5) then the transparency will be set to
--- 	half of the ORIGINAL transparency (which is 0.7), so the resulting transparency will be 0.35
+-- 	half of the way between the original transparency (which is 0.7) and 1, so the resulting transparency will be 0.85
 local TransProps = {
 	Frame		= {'BackgroundTransparency'},
 	TextLabel	= {'BackgroundTransparency', 'TextTransparency', 'TextStrokeTransparency'},
@@ -27,7 +27,7 @@ local TransProps = {
 	ImageButton	= {'BackgroundTransparency', 'ImageTransparency'},
 	ScrollingFrame	= {'BackgroundTransparency'},
 }
-function GLib.LogTransparency(f)
+function GLib.LogFrameTransparency(f)
 	if not f:FindFirstChild('_Transparency') then
 		local value = Instance.new('NumberValue', f)
 		value.Name = '_Transparency'
@@ -51,8 +51,8 @@ function GLib.LogTransparency(f)
 	end
 	ltrans(f)
 end
-function GLib.SetTransparency(f, trans)
-	if not f:FindFirstChild('_Transparency') then GLib.LogTransparency(f) end
+function GLib.SetFrameTransparency(f, trans)
+	if not f:FindFirstChild('_Transparency') then GLib.LogFrameTransparency(f) end
 	local val = f:FindFirstChild('_Transparency')
 	if not val then
 		val = Instance.new('NumberValue', f)
@@ -74,7 +74,7 @@ function GLib.SetTransparency(f, trans)
 	end
 	set(f)
 end
-function GLib.GetTransparency(f)
+function GLib.GetFrameTransparency(f)
 	local val = f:FindFirstChild('_Transparency')
 	return val and val.Value or 0
 end

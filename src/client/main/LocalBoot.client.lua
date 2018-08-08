@@ -35,6 +35,7 @@ include '/client/src/game/Match'
 -- 	  MatchInstructions
 -- 
 -- 
+local settings
 while true do
 	-- Create a start menu
 	local menu = StartMenu.new()
@@ -45,8 +46,9 @@ while true do
 	if option == 'local' then
 		log('local play selected')
 		-- Show pregame menu and wait for settings to be submitted
-		local pregame = PregameMenu.new()
-		local settings = pregame:PollSettings()
+		-- 	Pass previous settings so we can start on them
+		local pregame = PregameMenu.new(settings)
+		settings = pregame:PollSettings()
 		pregame:Destroy()
 
 		-- Show match instructions and wait for them to press space

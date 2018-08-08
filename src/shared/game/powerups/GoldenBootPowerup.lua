@@ -33,13 +33,27 @@ GoldenBootPowerup.Data = {
 function GoldenBootPowerup.ApplyEffect(self, ball)
 	local controller = self.match:GetDesignatedPowerupController(self, ball)
 	if controller then
+		-- Set modifier
 		self.controller = controller
 		self.controller:SetKickSpeedModifier(4)
+
+		-- Set foot color
+		local character = self.controller:GetCharacter()
+		if character then
+			character.Foot.Color = Color3.fromRGB(255, 227, 0)
+		end
 	end
 end
 function GoldenBootPowerup.RemoveEffect(self, ball)
 	if self.controller then
+		-- Set modifier
 		self.controller:SetKickSpeedModifier(1)
+
+		-- Set foot color
+		local character = self.controller:GetCharacter()
+		if character then
+			character.Foot.Color = Color3.fromRGB(163, 162, 165)
+		end
 	end
 end
 
